@@ -93,30 +93,17 @@ int func%d() {
 #include<funcs.h>
 #include<string.h>
 
-struct Error* create_error(const char *msg) {
-    struct Error *e = malloc(sizeof(struct Error));
-    e->msg = strdup(msg);
-    return e;
-}
-
-void free_error(struct Error *err) {
-    free(err->msg);
-    free(err);
-}
-
 int main(int argc, char **argv) {
     int ok = 0;
     int fail = 0;
-    struct Error *error = NULL;
+    int error = 0;
     srandom(42); // Must be deterministic and the same for C and C++
     const int rounds = %d;
     for(int i=0; i<rounds; i++) {
-        int res;
-        res = func0(&error);
+        int res = func0(&error);
+
         if(error) {
             fail++;
-            free_error(error);
-            error = NULL;
         } else {
             ok += res;
         }
@@ -125,46 +112,45 @@ int main(int argc, char **argv) {
     return 0;
 }
 ''' % self.num_rounds
-        self.c_header_templ = 'int func%d(struct Error **error);\n'
+        self.c_header_templ = 'int func%d(int *error);\n'
         self.c_templ = '''#include<stdlib.h>
 #include<funcs.h>
 
-int func%d(struct Error **error) {
+int func%d(int *error) {
     int num = random() %% 5;
-    int res;
+
     if(num == 0) {
-        res = func%d(error);
-    } else if(num == 1) {
-        res = func%d(error);
-    } else if(num == 2) {
-        res = func%d(error);
-    } else if(num == 3) {
-        res = func%d(error);
-    } else {
-        res = func%d(error);
-    }
-    /* This is a no-op in this specific code but is here to simulate
-     * real code that would check the error and based on that
-     * do something. It is vital we have a branch on the error condition,
-     * because that is what real world code would have as well.
-     */
-    if(*error) {
-        return -1;
+        return func%d(error);
     }
 
-    return res;
+    if(num == 1) {
+        return func%d(error);
+    }
+
+    if(num == 2) {
+        return func%d(error);
+    }
+
+    if(num == 3) {
+        return func%d(error);
+    }
+
+    return func%d(error);
 }
 '''
         self.c_last_tmpl = '''#include<string.h>
 #include<stdlib.h>
 #include<funcs.h>
 
-int func%d(struct Error **error) {
+int func%d(int *error) {
     int x = random() %% 100;
+
     if(x<%d) {
-        *error = create_error("Error");
+        *error = 1;     // could be any value
         return -1;
     }
+
+    *error = 0;
     return 1;
 }
 '''
@@ -233,15 +219,9 @@ executable('cppprog', 'main.cpp',
         open(fname, 'w').write(bottom_code)
         with open(self.c_h, 'w') as ofile:
             ofile.write('#pragma once\n')
-            ofile.write('''struct Error {
-    char *msg;
-};
-struct Error* create_error(const char *msg);
-
-void free_error(struct Error *err);
-''')
+            ofile.write('''''')
             for i in range(self.max_func+1):
-                ofile.write('int func%d(struct Error **error);\n' % i)
+                ofile.write('int func%d(int *error);\n' % i)
         with open(self.c_meson, 'w') as ofile:
             ofile.write('''project('exceptionspeed', 'c',
     default_options : ['buildtype=debugoptimized', 'c_std=gnu99'])
