@@ -76,7 +76,7 @@ int func%d() {
 int func%d() {
     int x = random() %% 100;
     if(x<%d) {
-        throw std::runtime_error("Error");
+        throw 1;
     }
     return 1;
 }
